@@ -1,0 +1,5 @@
+{
+  "name": "InstallerGenie",
+  "description": "一款 AI 驱动的工具，用于生成强大的 Inno Setup 脚本，将 MSI 文件和自动化脚本打包成一个单一的可执行安装程序。",
+  "requestFramePermissions": []
+}
