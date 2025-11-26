@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronRight, ChevronLeft, Code, Download, Loader2, Box, Wand2, LayoutTemplate } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Code, Download, Loader2, Box, Wand2, LayoutTemplate, FileCog } from 'lucide-react';
 import { DEFAULT_CONFIG, InstallerConfig, WizardStep } from './types';
 import { ConfigForm } from './components/ConfigForm';
 import { LivePreview } from './components/LivePreview';
@@ -51,6 +51,68 @@ export default function App() {
     const file = new Blob([generatedCode], {type: 'text/plain'});
     element.href = URL.createObjectURL(file);
     element.download = "setup_script.iss";
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  const downloadBatchScript = () => {
+    // 预设用户提供的路径
+    const compilerPath = "D:\\Program Files (x86)\\Inno Setup 6\\ISCC.exe";
+    
+    const batchContent = `@echo off
+chcp 65001 >nul
+title InstallerGenie Auto-Builder
+cls
+
+echo ========================================================
+echo       InstallerGenie 自动构建工具
+echo ========================================================
+echo.
+
+set "ISCC_PATH=${compilerPath}"
+set "SCRIPT_NAME=setup_script.iss"
+
+:: 1. Check Compiler
+if not exist "%ISCC_PATH%" (
+    echo [错误] 找不到 Inno Setup 编译器。
+    echo 检测路径: "%ISCC_PATH%"
+    echo.
+    echo 请手动修改本 BAT 文件中的 ISCC_PATH 为您电脑上的实际路径。
+    pause
+    exit /b
+)
+
+:: 2. Check Script
+if not exist "%SCRIPT_NAME%" (
+    echo [错误] 找不到 "%SCRIPT_NAME%"。
+    echo 请先下载 .iss 脚本，并将其与本工具放在同一文件夹下。
+    pause
+    exit /b
+)
+
+:: 3. Run Compilation
+echo [1/2] 正在启动编译器...
+echo --------------------------------------------------------
+"%ISCC_PATH%" "%SCRIPT_NAME%"
+echo --------------------------------------------------------
+
+if %errorlevel% neq 0 (
+    echo.
+    echo [失败] 编译出现错误，请检查上方红字提示。
+    color 0c
+) else (
+    echo.
+    echo [成功] 安装包已生成！请查看 Output 文件夹。
+    color 0a
+)
+
+pause
+`;
+    const element = document.createElement("a");
+    const file = new Blob([batchContent], {type: 'text/plain'});
+    element.href = URL.createObjectURL(file);
+    element.download = "build.bat";
     document.body.appendChild(element);
     element.click();
     document.body.removeChild(element);
@@ -197,10 +259,13 @@ export default function App() {
                                 <p className="text-sm font-mono">正在通过 AI 生成 Pascal Script...</p>
                              </div>
                           ) : (
-                             <pre className="font-mono text-xs text-slate-300 leading-relaxed">{generatedCode}</pre>
+                             <pre className="font-mono text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-all">{generatedCode}</pre>
                           )}
                        </div>
-                       <div className="p-4 border-t border-white/5 bg-slate-950 flex justify-end">
+                       <div className="p-4 border-t border-white/5 bg-slate-950 flex justify-end gap-3">
+                          <button onClick={downloadBatchScript} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-blue-400 hover:text-blue-300 border border-slate-700 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
+                             <FileCog size={14} /> 下载编译脚本 (.bat)
+                          </button>
                           <button onClick={downloadScript} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-2 transition-all shadow-lg shadow-emerald-900/20">
                              <Download size={14} /> 下载 .iss 脚本文件
                           </button>
