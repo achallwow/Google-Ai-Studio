@@ -1,8 +1,7 @@
 
-
 import React from 'react';
 import { InstallerConfig, ScriptFile, WizardStep } from '../types';
-import { Plus, Trash2, Settings, AlertTriangle, FileText, Terminal, CloudDownload, Link as LinkIcon, HardDrive, List, FolderInput, Server, Lock, User, MonitorSmartphone, Filter, Eraser, UserCheck, Building2, ShieldCheck, Clock, RefreshCw, Network, FolderSymlink } from 'lucide-react';
+import { Plus, Trash2, Settings, AlertTriangle, FileText, Terminal, CloudDownload, Link as LinkIcon, HardDrive, List, FolderInput, Server, Lock, User, MonitorSmartphone, Filter, Eraser, UserCheck, Building2, ShieldCheck, Clock, RefreshCw, Network, FolderSymlink, Globe, ShieldAlert } from 'lucide-react';
 
 interface ConfigFormProps {
   config: InstallerConfig;
@@ -147,13 +146,42 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({ config, setConfig, curre
          
          {config.synologyConfig.enabled && (
              <div className="grid grid-cols-1 gap-4 pt-2 animate-in fade-in slide-in-from-top-2">
-                <InputGroup 
-                    label="服务器地址 (IP / QuickConnect)" 
-                    value={config.synologyConfig.serverAddress} 
-                    onChange={(v: string) => handleSynologyChange('serverAddress', v)} 
-                    placeholder="例如: 192.168.1.100 或 mynas.quickconnect.to"
-                    icon={LinkIcon}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                    <InputGroup 
+                        label="服务器地址 (IP / QC)" 
+                        value={config.synologyConfig.serverAddress} 
+                        onChange={(v: string) => handleSynologyChange('serverAddress', v)} 
+                        placeholder="例如: 192.168.1.100"
+                        icon={LinkIcon}
+                    />
+                     <InputGroup 
+                        label="远程路径 (Remote Path)" 
+                        value={config.synologyConfig.remotePath} 
+                        onChange={(v: string) => handleSynologyChange('remotePath', v)} 
+                        placeholder="/"
+                        helpText="服务器端的挂载根目录，通常为 '/'"
+                        icon={Globe}
+                    />
+                </div>
+                
+                <div className="flex gap-4">
+                    <div className="flex-1">
+                        <ToggleItem 
+                            label="启用 SSL (HTTPS)" 
+                            checked={config.synologyConfig.enableSsl} 
+                            onChange={(c: boolean) => handleSynologyChange('enableSsl', c)} 
+                        />
+                    </div>
+                    <div className="flex-1">
+                        <ToggleItem 
+                            label="允许不信任证书" 
+                            checked={config.synologyConfig.allowUntrustedCertificate} 
+                            onChange={(c: boolean) => handleSynologyChange('allowUntrustedCertificate', c)} 
+                            activeColorClass="checked:bg-amber-600 checked:border-amber-600"
+                        />
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                     <InputGroup 
                         label="管理员账号 (Admin)" 

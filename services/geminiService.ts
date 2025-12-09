@@ -24,7 +24,6 @@ const generatePackageJson = (config: InstallerConfig) => {
     author: "InstallerBuilder",
     license: "ISC",
     dependencies: {
-      "sudo-prompt": "^9.2.1",
       "fs-extra": "^11.1.0"
     },
     devDependencies: {
@@ -61,10 +60,32 @@ const generatePackageJson = (config: InstallerConfig) => {
 };
 
 // --- 2. Main.js (STABLE NODE DOWNLOADER) ---
-const generateMainJs = (config: InstallerConfig) => `
+const generateMainJs = (config: InstallerConfig) => {
+    // Construct the payload object SAFE for injection via JSON.stringify
+    const synologyConfigPayload = config.synologyConfig.enabled ? {
+        "connections": [
+            {
+                "server_address": config.synologyConfig.serverAddress,
+                "username": config.synologyConfig.username,
+                "password": config.synologyConfig.password,
+                "as_user": config.synologyConfig.asUser, // Values with backslashes are safe here
+                "enable_ssl": config.synologyConfig.enableSsl,
+                "allow_untrusted_certificate": config.synologyConfig.allowUntrustedCertificate,
+                "sync_sessions": [
+                    {
+                        "sharefolder": config.synologyConfig.shareFolder,
+                        "remote_path": config.synologyConfig.remotePath,
+                        "local_path": config.synologyConfig.localPath,
+                        "sync_direction": 0
+                    }
+                ]
+            }
+        ]
+    } : null;
+
+    return `
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const sudo = require('sudo-prompt');
 const fs = require('fs-extra');
 const os = require('os');
 const { spawn } = require('child_process');
@@ -201,12 +222,34 @@ function downloadFileNode(url, destPath) {
   });
 }
 
-function execAsAdmin(command) {
+// --- EXEC AS ADMIN via POWERSHELL ---
+// Uses native Windows Start-Process -Verb RunAs to invoke UAC
+// Much more robust than sudo-prompt for complex arguments/paths
+function execAsAdmin(msiPath, configPath) {
   return new Promise((resolve, reject) => {
-    sudo.exec(command, { name: 'Synology Installer' }, (error, stdout) => {
-      if (error) reject(error);
-      else resolve(stdout);
+    
+    // Construct argument list for PowerShell
+    // We pass arguments as an array to ArgumentList to handle quoting correctly
+    const msiArg = \`"\${msiPath}"\`;
+    const configArg = configPath ? \`CONFIGPATH="\${configPath}"\` : '';
+    
+    let psArgs = [
+        '-NoProfile', 
+        '-ExecutionPolicy', 'Bypass', 
+        '-Command', 
+        \`Start-Process -FilePath "msiexec.exe" -ArgumentList '/i', '\${msiArg}', '/qn', '/norestart'\${configPath ? \`, '\${configArg}'\` : ''} -Verb RunAs -Wait -WindowStyle Hidden\`
+    ];
+
+    const child = spawn('powershell.exe', psArgs, {
+        windowsHide: true
     });
+
+    child.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error('PowerShell exited with code ' + code));
+    });
+    
+    child.on('error', (err) => reject(err));
   });
 }
 
@@ -219,8 +262,29 @@ function execAsUser(command) {
   });
 }
 
+// --- HELPER: Wait for File to Exist (Retry Logic) ---
+// Synology MSI finishes "installing" before the files are fully written to disk.
+// We must poll for the EXE before running config commands.
+async function waitForFile(possiblePaths, maxRetries = 30) {
+    for (let i = 0; i < maxRetries; i++) {
+        for (const p of possiblePaths) {
+            if (fs.existsSync(p)) {
+                return p;
+            }
+        }
+        // Log every 5th retry to avoid spamming
+        if (i > 0 && i % 5 === 0) {
+            sendLog(\`⏳ 等待主程序写入硬盘 (\${i}s)...\`);
+        }
+        await new Promise(r => setTimeout(r, 1000)); // Wait 1 second
+    }
+    return null;
+}
+
 ipcMain.handle('install-start', async (event, installData) => {
-  const configJsonPath = 'C:\\\\Users\\\\Public\\\\synology_install_config.json';
+  // Use unique run ID to prevent temp file conflicts
+  const runId = Date.now();
+  const configJsonPath = path.join(os.tmpdir(), \`syno_config_\${runId}.json\`);
   let msiPath = '';
 
   try {
@@ -230,7 +294,7 @@ ipcMain.handle('install-start', async (event, installData) => {
       const tempDir = os.tmpdir();
       
       if (${config.useOnlineInstaller}) {
-         msiPath = path.join(tempDir, 'SynologyDriveSetup.msi');
+         msiPath = path.join(tempDir, \`SynologyDriveSetup_\${runId}.msi\`);
          if (fs.existsSync(msiPath)) fs.unlinkSync(msiPath);
 
          sendLog('📡 开始下载核心组件...');
@@ -249,77 +313,68 @@ ipcMain.handle('install-start', async (event, installData) => {
 
       if (${config.synologyConfig.enabled}) {
           sendLog('⚙️ 生成自动化配置文件...');
-          const synologyConfig = {
-              "connections": [
-                  {
-                      "server_address": "${config.synologyConfig.serverAddress}",
-                      "username": "${config.synologyConfig.username}",
-                      "password": "${config.synologyConfig.password}",
-                      "as_user": "${config.synologyConfig.asUser.replace(/\\/g, '\\\\')}", 
-                      "enable_ssl": true,
-                      "allow_untrusted_certificate": true,
-                      "sync_sessions": [
-                          {
-                              "sharefolder": "${config.synologyConfig.shareFolder}",
-                              "remote_path": "${config.synologyConfig.remotePath}",
-                              "local_path": "${config.synologyConfig.localPath.replace(/\\/g, '\\\\')}",
-                              "sync_direction": 0
-                          }
-                      ]
-                  }
-              ]
-          };
+          const synologyConfig = ${JSON.stringify(synologyConfigPayload, null, 4)};
           await fs.writeFile(configJsonPath, JSON.stringify(synologyConfig, null, 4));
       }
 
       sendLog('🛡️ 正在申请管理员权限进行安装...');
-      let installCmd = \`msiexec /i "\${msiPath}" /qn /norestart\`;
-      if (${config.synologyConfig.enabled}) {
-          installCmd += \` CONFIGPATH="\${configJsonPath}"\`;
-      }
-      
       sendProgress(-1); 
-      await execAsAdmin(installCmd);
+      
+      // Install MSI
+      await execAsAdmin(msiPath, ${config.synologyConfig.enabled} ? configJsonPath : null);
+      
       sendProgress(100);
-      sendLog('✅ 核心组件安装成功');
+      sendLog('✅ 核心组件安装指令已完成');
+
+      // --- CRITICAL FIX: RETRY LOGIC ---
+      const programFiles = process.env.ProgramFiles;
+      const programFilesX86 = process.env['ProgramFiles(x86)'];
+      
+      // Define potential paths for Synology Drive Client
+      const possibleUiPaths = [
+          path.join(programFilesX86 || 'C:\\Program Files (x86)', 'Synology', 'SynologyDrive', 'bin', 'cloud-drive-ui.exe'),
+          path.join(programFiles || 'C:\\Program Files', 'Synology', 'SynologyDrive', 'bin', 'cloud-drive-ui.exe')
+      ];
 
       if (${config.synologyConfig.enabled}) {
-          sendLog('🔄 正在应用用户配置...');
-          await new Promise(r => setTimeout(r, 2000));
-
-          const programFiles = process.env.ProgramFiles;
-          const programFilesX86 = process.env['ProgramFiles(x86)'];
+          sendLog('🔄 正在搜索主程序以应用配置...');
           
-          let uiPath = path.join(programFiles, 'Synology', 'SynologyDrive', 'bin', 'cloud-drive-ui.exe');
-          if (!fs.existsSync(uiPath)) {
-              uiPath = path.join(programFilesX86 || programFiles, 'Synology', 'SynologyDrive', 'bin', 'cloud-drive-ui.exe');
-          }
+          // Wait up to 30 seconds for the file to appear
+          const uiPath = await waitForFile(possibleUiPaths, 30);
 
-          if (fs.existsSync(uiPath)) {
+          if (uiPath) {
+              sendLog('✅ 找到主程序: ' + uiPath);
               try {
+                  sendLog('⚡ 正在注入用户配置...');
                   await execAsUser(\`"\${uiPath}" --auto-setup "\${configJsonPath}"\`);
-                  sendLog('✅ 用户配置注入成功');
+                  sendLog('✅ 用户配置注入命令已下发');
               } catch (e) {
                   sendLog('⚠️ 自动配置失败 (非致命): ' + e.message);
               }
           } else {
-              sendLog('⚠️ 未找到主程序，跳过配置步骤');
+              sendLog('❌ 超时: 未能找到 cloud-drive-ui.exe，跳过配置');
           }
       }
 
+      // Cleanup files
       setTimeout(() => {
           if (fs.existsSync(configJsonPath)) fs.unlink(configJsonPath, ()=>{});
           if (${config.useOnlineInstaller} && fs.existsSync(msiPath)) fs.unlink(msiPath, ()=>{});
-      }, 3000);
+      }, 5000);
 
-      sendLog('🚀 启动程序...');
-      let launcherPath = path.join(process.env.ProgramFiles, 'Synology', 'SynologyDrive', 'bin', 'launcher.exe');
-      if (!fs.existsSync(launcherPath)) {
-          launcherPath = path.join(process.env['ProgramFiles(x86)'] || '', 'Synology', 'SynologyDrive', 'bin', 'launcher.exe');
-      }
+      sendLog('🚀 正在启动程序...');
+      const possibleLauncherPaths = [
+          path.join(programFilesX86 || 'C:\\Program Files (x86)', 'Synology', 'SynologyDrive', 'bin', 'launcher.exe'),
+          path.join(programFiles || 'C:\\Program Files', 'Synology', 'SynologyDrive', 'bin', 'launcher.exe')
+      ];
+
+      const launcherPath = await waitForFile(possibleLauncherPaths, 10);
       
-      if (fs.existsSync(launcherPath)) {
+      if (launcherPath) {
           spawn(launcherPath, [], { detached: true, stdio: 'ignore' }).unref();
+          sendLog('✅ 程序已启动');
+      } else {
+          sendLog('⚠️ 未找到 launcher.exe，请手动启动');
       }
 
       return { success: true };
@@ -331,6 +386,7 @@ ipcMain.handle('install-start', async (event, installData) => {
   }
 });
 `;
+};
 
 // --- 3. Preload.js ---
 const generatePreloadJs = () => `
@@ -354,7 +410,8 @@ electron_builder_binaries_mirror=https://npmmirror.com/mirrors/electron-builder-
 
 // --- 5. Index.html (RESTORED HIGH QUALITY UI) ---
 const generateIndexHtml = (config: InstallerConfig) => {
-  const projects = config.projectList.split(',').map(s => s.trim());
+  // ROBUST PARSING: Trim and filter empty items to prevent blank dropdown options
+  const projects = config.projectList.split(',').map(s => s.trim()).filter(Boolean);
   
   return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -466,7 +523,8 @@ const generateIndexHtml = (config: InstallerConfig) => {
             if (proj === '职能部门') return ['人力行政部', '财务管理部', '运营管理部'];
             if (proj === '卖场') return ['卖场服务部'];
             if (proj === '万晟汇') return ['万晟汇'];
-            return CONFIG.departmentListRaw.split(',').map(s => s.trim());
+            // ROBUST PARSING HERE TOO
+            return CONFIG.departmentListRaw.split(',').map(s => s.trim()).filter(Boolean);
         }
 
         window.onclick = function(event) {
@@ -574,7 +632,7 @@ const generateIndexHtml = (config: InstallerConfig) => {
                     </div>
                     \${CONFIG.warningMessage ? \`<div class="mt-auto p-4 bg-orange-950/20 border border-orange-500/20 rounded-lg text-xs text-orange-200/80 backdrop-blur-sm relative overflow-hidden"><div class="absolute left-0 top-0 bottom-0 w-1 bg-orange-500/50"></div><strong class="block mb-1 text-orange-400 flex items-center gap-2">注意: \${CONFIG.warningTitle}</strong>\${CONFIG.warningMessage}</div>\` : '<div class="mt-auto"></div>'}
                     <div class="flex justify-between pt-6 border-t border-slate-800/50 mt-auto shrink-0 pb-2">
-                        <button class="px-6 py-2 rounded-lg bg-slate-800 text-slate-400 text-xs font-medium border border-slate-700 cursor-not-allowed opacity-50">上一步</button>
+                        <button onclick="prevStep()" class="px-6 py-2 rounded-lg bg-slate-800 text-slate-400 text-xs font-medium border border-slate-700 cursor-not-allowed opacity-50">上一步</button>
                         <button onclick="nextStep()" class="px-6 py-2 rounded-lg bg-blue-600 text-white text-xs font-medium shadow-lg hover:bg-blue-500 transition-colors active:scale-95">下一步</button>
                     </div>
                 </div>\`;
@@ -639,9 +697,11 @@ const generateIndexHtml = (config: InstallerConfig) => {
                             <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-indigo-600 h-full transition-all duration-300 w-0 relative overflow-hidden shadow-[0_0_10px_rgba(59,130,246,0.5)]">
                             </div>
                         </div>
-                        <p id="progressText" class="text-3xl font-bold text-blue-500 mt-4 font-mono">0%</p>
+                        <p id="progressText" class="text-xl font-bold text-blue-500 mt-4">{simulatedProgress}%</p>
                     </div>
-                    <div id="logArea" class="h-48 rounded-xl bg-slate-950/50 border border-slate-800/50 font-mono text-xs p-3 overflow-y-auto text-slate-500 custom-scrollbar"><div>等待后台进程响应...</div></div>
+                    <div id="logArea" class="h-48 rounded-2xl bg-slate-950/50 border border-slate-800/50 font-mono text-xs p-4 overflow-y-auto text-slate-500 custom-scrollbar break-all whitespace-pre-wrap">
+                        <div className="mb-0.5 flex items-start gap-2 leading-tight"><span className="opacity-80">⚡ 正在呼叫安装引擎...</span></div>
+                    </div>
                      <div id="finishArea" class="hidden text-center mt-4">
                         <button onclick="window.electronAPI.close()" class="px-8 py-2 bg-emerald-600 text-white rounded font-bold shadow-lg shadow-emerald-900/20">安装完成 (关闭)</button>
                     </div>
@@ -656,12 +716,16 @@ const generateIndexHtml = (config: InstallerConfig) => {
             lastRenderedStep = state.step;
         }
 
-        function nextStep() { state.step++; renderPage(); }
-        function prevStep() { state.step--; renderPage(); }
+        function nextStep() { state.step++; state.openDropdown = null; renderPage(); }
+        function prevStep() { state.step--; state.openDropdown = null; renderPage(); }
 
         function addLog(msg) {
             const el = document.getElementById('logArea');
-            if(el) { el.innerHTML += \`<div><span class="text-blue-500">>></span> \${msg}</div>\`; el.scrollTop = el.scrollHeight; }
+            if(el) { 
+                // CLEANER LOGS
+                el.innerHTML += \`<div class="mb-0.5 animate-slide-in-right flex items-start gap-2 leading-tight"><span class="opacity-80">\${msg}</span></div>\`; 
+                el.scrollTop = el.scrollHeight; 
+            }
         }
 
         function updateProgress(percent) {

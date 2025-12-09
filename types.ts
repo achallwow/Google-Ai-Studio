@@ -16,6 +16,8 @@ export interface SynologyConfig {
   shareFolder: string; // e.g., "home" or "TeamFolder"
   remotePath: string; // e.g., "/"
   localPath: string; // e.g., "C:\\Users\\$\\SynologyDrive"
+  enableSsl: boolean;
+  allowUntrustedCertificate: boolean;
 }
 
 export interface InstallerConfig {
@@ -83,6 +85,8 @@ export const DEFAULT_CONFIG: InstallerConfig = {
     asUser: "$", // Default to local user variable per PDF
     shareFolder: "home",
     remotePath: "/",
-    localPath: "C:\\Users\\$\\SynologyDrive"
+    localPath: "C:\\Users\\$\\SynologyDrive",
+    enableSsl: true,
+    allowUntrustedCertificate: true
   }
 };
