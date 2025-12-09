@@ -1,7 +1,8 @@
 
+
 import React from 'react';
 import { InstallerConfig, ScriptFile, WizardStep } from '../types';
-import { Plus, Trash2, Settings, AlertTriangle, FileText, Terminal, CloudDownload, Link as LinkIcon, HardDrive, List, FolderInput, Server, Lock, User, MonitorSmartphone, Filter, Eraser, UserCheck, Building2, ShieldCheck, Clock, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Settings, AlertTriangle, FileText, Terminal, CloudDownload, Link as LinkIcon, HardDrive, List, FolderInput, Server, Lock, User, MonitorSmartphone, Filter, Eraser, UserCheck, Building2, ShieldCheck, Clock, RefreshCw, Network, FolderSymlink } from 'lucide-react';
 
 interface ConfigFormProps {
   config: InstallerConfig;
@@ -12,7 +13,7 @@ interface ConfigFormProps {
 
 // --- Helper Components ---
 
-const InputGroup = ({ label, value, onChange, placeholder, icon: Icon, type = "text" }: any) => (
+const InputGroup = ({ label, value, onChange, placeholder, icon: Icon, type = "text", helpText }: any) => (
   <div className="group">
     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 group-focus-within:text-blue-400 transition-colors">
       {label}
@@ -27,6 +28,7 @@ const InputGroup = ({ label, value, onChange, placeholder, icon: Icon, type = "t
         placeholder={placeholder}
       />
     </div>
+    {helpText && <p className="text-[10px] text-slate-500 mt-1 leading-tight">{helpText}</p>}
   </div>
 );
 
@@ -116,14 +118,8 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({ config, setConfig, curre
           placeholder="如：企业助手客户端"
           icon={FileText}
         />
-        <div className="grid grid-cols-2 gap-4">
-          <InputGroup 
-            label="版本号" 
-            value={config.appVersion} 
-            onChange={(v: string) => handleChange('appVersion', v)} 
-            placeholder="1.0.0"
-            icon={Settings}
-          />
+        {/* Version input removed as requested */}
+        <div className="grid grid-cols-1 gap-4">
            <InputGroup 
             label="发布厂商" 
             value={config.publisher} 
@@ -138,7 +134,7 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({ config, setConfig, curre
       <div className={`bg-slate-800/20 border rounded-xl p-4 space-y-4 transition-all duration-300 ${config.synologyConfig.enabled ? 'border-blue-500/30 shadow-[0_0_20px_rgba(37,99,235,0.05)]' : 'border-slate-700/50 hover:border-blue-500/20'}`}>
          <div className="flex items-center justify-between">
             <h3 className="text-xs font-bold text-blue-400 uppercase tracking-wider flex items-center gap-2">
-                <Server size={14} /> Synology 服务器配置
+                <Server size={14} /> Synology 服务器配置 (大规模部署)
             </h3>
             <ToggleItem 
                 label="启用自动化部署" 
@@ -176,8 +172,43 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({ config, setConfig, curre
                     />
                 </div>
 
+                {/* Mass Deployment Specifics (PDF Pages 8-10) */}
+                <div className="border-t border-slate-700/50 pt-4 mt-2">
+                    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-1">
+                        <Network size={12} /> 连接映射策略 (as_user)
+                    </div>
+                    <div className="space-y-4">
+                        <InputGroup 
+                            label="目标用户模式 (as_user)" 
+                            value={config.synologyConfig.asUser} 
+                            onChange={(v: string) => handleSynologyChange('asUser', v)} 
+                            placeholder="$"
+                            helpText="使用 '$' 代表当前 Windows 登录用户。域用户请使用 'DOMAIN\\$' 格式。"
+                            icon={UserCheck}
+                        />
+                        <div className="grid grid-cols-2 gap-4">
+                             <InputGroup 
+                                label="远程同步文件夹 (Share Folder)" 
+                                value={config.synologyConfig.shareFolder} 
+                                onChange={(v: string) => handleSynologyChange('shareFolder', v)} 
+                                placeholder="home"
+                                helpText="输入 'home' 代表个人空间，或输入团队文件夹名称。"
+                                icon={CloudDownload}
+                            />
+                             <InputGroup 
+                                label="本地同步路径 (Local Path)" 
+                                value={config.synologyConfig.localPath} 
+                                onChange={(v: string) => handleSynologyChange('localPath', v)} 
+                                placeholder="C:\Users\$\SynologyDrive"
+                                helpText="使用 '$' 作为用户目录变量。建议保留默认值。"
+                                icon={FolderSymlink}
+                            />
+                        </div>
+                    </div>
+                </div>
+
                 {/* Force Clean Install Toggle */}
-                <div className="bg-red-900/10 border border-red-500/20 rounded-lg p-3">
+                <div className="bg-red-900/10 border border-red-500/20 rounded-lg p-3 mt-2">
                    <div className="flex items-start gap-2">
                        <Eraser className="text-red-400 mt-0.5" size={14} />
                        <div className="flex-1">

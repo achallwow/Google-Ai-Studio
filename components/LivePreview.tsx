@@ -1,8 +1,7 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { InstallerConfig } from '../types';
-import { User, Building, HardDrive, ShieldCheck, CloudDownload, Minus, Square, X as CloseIcon, ChevronDown, Folder, Monitor, Filter, MonitorSmartphone, AlertTriangle, FileSpreadsheet, Ruler, Film, FileText, Info, CheckCircle2, ListChecks, Check, Clock, CloudUpload, Trash2, FileWarning, MessageSquareOff, ScanLine } from 'lucide-react';
+import { User, Building, HardDrive, ShieldCheck, CloudDownload, Minus, X as CloseIcon, ChevronDown, Folder, Monitor, Filter, MonitorSmartphone, AlertTriangle, FileSpreadsheet, Ruler, Film, FileText, Info, CheckCircle2, ListChecks, Check, Clock, CloudUpload, Trash2, FileWarning, MessageSquareOff, ScanLine } from 'lucide-react';
 
 interface LivePreviewProps {
   config: InstallerConfig;
@@ -64,6 +63,8 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
   const [selectedDepartment, setSelectedDepartment] = useState("");
   // State for backup checklist
   const [backupSelections, setBackupSelections] = useState<string[]>([]);
+  // Progress Simulation State
+  const [simulatedProgress, setSimulatedProgress] = useState(0);
   
   // New: Configuration Confirmation State
   const [isConfigConfirmed, setIsConfigConfirmed] = useState(false);
@@ -128,6 +129,24 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
   useEffect(() => {
     if (previewPage === 'summary') {
         setIsConfigConfirmed(false);
+    }
+  }, [previewPage]);
+
+  // Progress Simulation Effect
+  useEffect(() => {
+    if (previewPage === 'installing') {
+        setSimulatedProgress(0);
+        const interval = setInterval(() => {
+            setSimulatedProgress(prev => {
+                if (prev >= 100) {
+                    clearInterval(interval);
+                    return 100;
+                }
+                // Random increment
+                return Math.min(prev + Math.random() * 5, 100);
+            });
+        }, 300);
+        return () => clearInterval(interval);
     }
   }, [previewPage]);
 
@@ -200,8 +219,8 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
             <span className="text-slate-300">{config.appName}</span>
           </div>
           <div className="flex gap-3">
+            {/* Removed Square Icon (Maximize) */}
             <Minus size={14} className="text-slate-500 hover:text-white cursor-pointer transition-colors" />
-            <Square size={12} className="text-slate-500 hover:text-white cursor-pointer transition-colors mt-0.5" />
             <CloseIcon size={14} className="text-slate-500 hover:text-red-400 cursor-pointer transition-colors" />
           </div>
         </div>
@@ -211,9 +230,9 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
           
           {/* Sidebar - Centered Layout */}
           <div className="w-56 bg-[#020617]/50 backdrop-blur-sm border-r border-slate-800 p-8 flex flex-col justify-between z-10 items-center">
-            <div className="space-y-1 w-full text-center">
-              <h2 className="text-base font-bold text-white tracking-wide">安装向导</h2>
-              <p className="text-[10px] text-blue-500 uppercase font-mono tracking-wider">Setup Wizard</p>
+            <div className="space-y-1 w-full text-center mt-2">
+              <h2 className="text-xl font-bold text-white tracking-wide">安装向导</h2>
+              <p className="text-[10px] text-blue-500 uppercase font-mono tracking-wider mt-0.5">Setup Wizard</p>
             </div>
             
             <div className="space-y-6 w-full flex flex-col items-center">
@@ -243,8 +262,8 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
                 </div>
                 
                 {config.publisher && (
-                  <div className="text-[9px] text-slate-600 font-mono uppercase tracking-widest opacity-70 mt-1">
-                    {config.publisher}
+                  <div className="text-[10px] text-slate-500 font-medium tracking-wide opacity-80 mt-1">
+                    {config.publisher.replace(':', '·')}
                   </div>
                 )}
             </div>
@@ -259,7 +278,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
 
             {/* PAGE 1: WELCOME */}
             {previewPage === 'welcome' && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col h-full relative z-10">
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out flex flex-col h-full relative z-10">
                 <div className="mb-8 w-16 h-16 rounded-2xl bg-slate-800/50 border border-slate-700 flex items-center justify-center text-blue-400 shadow-lg shadow-blue-900/20">
                   <ShieldCheck size={36} strokeWidth={1.5} />
                 </div>
@@ -296,14 +315,14 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
 
                 <div className="flex justify-between pt-6 border-t border-slate-800/50 mt-auto">
                    <button className="px-6 py-2 rounded-lg bg-slate-800 text-slate-400 text-xs font-medium border border-slate-700 cursor-not-allowed opacity-50 flex items-center justify-center">上一步</button>
-                   <button onClick={handleNextClick} className="px-6 py-2 rounded-lg bg-blue-600 text-white text-xs font-medium shadow-lg hover:bg-blue-500 transition-colors flex items-center justify-center">下一步</button>
+                   <button onClick={handleNextClick} className="px-6 py-2 rounded-lg bg-blue-600 text-white text-xs font-medium shadow-lg hover:bg-blue-500 transition-colors flex items-center justify-center active:scale-95">下一步</button>
                 </div>
               </div>
             )}
 
             {/* PAGE 2: INPUT */}
             {previewPage === 'input' && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col h-full relative z-10">
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out flex flex-col h-full relative z-10">
                 <h2 className="text-xl font-bold text-white mb-6">用户信息登记</h2>
                 
                 <div className="space-y-6 flex-1">
@@ -349,7 +368,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
                                <div 
                                  key={item} 
                                  onClick={() => toggleBackup(item)} 
-                                 className={`cursor-pointer text-xs rounded-lg border flex items-center justify-center py-3 gap-2 transition-all duration-300 group select-none
+                                 className={`cursor-pointer text-xs rounded-lg border flex items-center justify-center py-3 gap-2 transition-all duration-300 group select-none active:scale-95
                                  ${isSelected 
                                     ? 'bg-emerald-950/40 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.25)] text-emerald-400 font-bold' 
                                     : 'bg-[#0a101e] border-slate-800 text-slate-500 hover:border-amber-700/50 hover:text-slate-300'}`}
@@ -378,15 +397,15 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
                 </div>
 
                 <div className="flex justify-between pt-6 border-t border-slate-800/50 mt-auto">
-                   <button onClick={handleBackClick} className="px-6 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-medium border border-slate-700 flex items-center justify-center">上一步</button>
-                   <button onClick={handleNextClick} disabled={!isInputPageValid} className={`px-6 py-2 rounded-lg text-white text-xs font-medium shadow-lg transition-all flex items-center justify-center ${isInputPageValid ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/30' : 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-60'}`}>下一步</button>
+                   <button onClick={handleBackClick} className="px-6 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-medium border border-slate-700 flex items-center justify-center active:scale-95">上一步</button>
+                   <button onClick={handleNextClick} disabled={!isInputPageValid} className={`px-6 py-2 rounded-lg text-white text-xs font-medium shadow-lg transition-all flex items-center justify-center active:scale-95 ${isInputPageValid ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-900/30' : 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-60'}`}>下一步</button>
                 </div>
               </div>
             )}
 
             {/* PAGE 3: SUMMARY (Optimized Single-Row Layout) */}
             {previewPage === 'summary' && (
-              <div className="animate-in fade-in slide-in-from-right-4 duration-500 flex flex-col h-full relative z-10">
+              <div className="animate-in fade-in slide-in-from-right-4 duration-500 ease-out flex flex-col h-full relative z-10">
                 <div className="flex items-center justify-between mb-3">
                     <h2 className="text-xl font-bold text-white">准备安装</h2>
                 </div>
@@ -395,27 +414,27 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
                 <div className="bg-slate-900/50 border border-slate-800 rounded-xl py-3 px-4 mb-4 shadow-inner">
                     <div className="flex items-center gap-4">
                         {/* 1. Connection ID */}
-                        <div className="shrink-0">
-                            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <div className="shrink-0 flex flex-col justify-start h-full">
+                            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1 h-4">
                               <MonitorSmartphone size={10}/> 连接标识
                             </div>
-                            <div className="font-mono text-emerald-400 font-bold text-xs">
+                            <div className="font-mono text-emerald-400 font-bold text-xs h-4 flex items-center">
                                 {selectedProject}-{selectedDepartment}
                             </div>
                         </div>
 
                         {/* Separator */}
-                        <div className="w-px h-8 bg-slate-800"></div>
+                        <div className="w-px h-10 bg-slate-800 self-center"></div>
 
                         {/* 2. Sources (Flex grow to fill middle) */}
-                        <div className="flex-1">
-                             <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <div className="flex-1 flex flex-col justify-start h-full">
+                             <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1 h-4">
                                <HardDrive size={10}/> 备份目录
                              </div>
                              <div className="flex flex-wrap gap-1.5">
                                  {backupSelections.length > 0 ? (
                                    backupSelections.map(d => (
-                                     <div key={d} className="px-2 py-0.5 bg-slate-800 rounded text-slate-300 font-mono text-[10px] border border-slate-700 flex items-center gap-1">
+                                     <div key={d} className="px-2 py-0 bg-slate-800 rounded text-slate-300 font-mono text-[9px] border border-slate-700 flex items-center gap-1 h-4">
                                         {d === 'Desktop' ? <Monitor size={10} /> : <Folder size={10} />}
                                         {d === 'Desktop' ? '桌面' : d}
                                      </div>
@@ -425,15 +444,15 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
                         </div>
 
                         {/* Separator */}
-                        <div className="w-px h-8 bg-slate-800"></div>
+                        <div className="w-px h-10 bg-slate-800 self-center"></div>
 
                         {/* 3. Mode (Left Aligned) */}
-                        <div className="shrink-0">
-                            <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                        <div className="shrink-0 flex flex-col justify-start h-full">
+                            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 flex items-center gap-1 h-4">
                               <Clock size={10}/> 备份模式
                             </div>
-                            <div className="flex justify-start">
-                                <div className="text-blue-300 font-medium text-xs px-2 py-0.5 bg-blue-900/20 rounded inline-block">
+                            <div className="flex justify-start h-4 items-center">
+                                <div className="text-blue-300 font-medium text-xs px-2 py-0 bg-blue-900/20 rounded inline-block leading-4">
                                     {config.backupMode === 'continuous' ? '连续备份' : `计划: ${config.backupStartTime}`}
                                 </div>
                             </div>
@@ -443,9 +462,9 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
 
                 {/* 3 CATEGORIES - BLACKLIST STRATEGY DESIGN */}
                 <div className="flex-1 flex flex-col">
-                    <div className="mb-2 p-2 bg-amber-950/20 border border-amber-500/20 rounded-lg flex gap-2 items-start">
-                         <AlertTriangle size={14} className="text-amber-500 shrink-0 mt-0.5" />
-                         <span className="text-[10px] text-amber-200/80 leading-relaxed">
+                    <div className="mb-2 p-2 bg-amber-950/20 border border-amber-500/20 rounded-lg flex gap-2 items-center">
+                         <AlertTriangle size={14} className="text-amber-500 shrink-0" />
+                         <span className="text-xs text-amber-200/80 leading-relaxed font-medium">
                             为避免无效数据占用服务器空间，以下非业务类文件不备份，其余文件均自动备份。
                          </span>
                     </div>
@@ -483,7 +502,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
                     {/* CONFIRMATION CHECKBOX */}
                     <div 
                         onClick={() => setIsConfigConfirmed(!isConfigConfirmed)}
-                        className={`mt-4 p-4 rounded-lg border flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 group select-none ${isConfigConfirmed ? 'bg-emerald-950/40 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'bg-[#0a101e] border-slate-700 hover:border-amber-500/50 animate-pulse'}`}
+                        className={`mt-4 p-4 rounded-lg border flex items-center justify-center gap-2 cursor-pointer transition-all duration-300 group select-none active:scale-95 ${isConfigConfirmed ? 'bg-emerald-950/40 border-emerald-500/50 shadow-[0_0_15px_rgba(16,185,129,0.15)]' : 'bg-[#0a101e] border-slate-700 hover:border-amber-500/50 animate-pulse'}`}
                     >
                          <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${isConfigConfirmed ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-transparent border-slate-500 group-hover:border-amber-500'}`}>
                              {isConfigConfirmed && <Check size={12} strokeWidth={3} />}
@@ -496,11 +515,11 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
 
                 {/* BUTTON FOOTER */}
                 <div className="flex justify-between pt-6 border-t border-slate-800/50 mt-auto">
-                   <button onClick={handleBackClick} className="px-6 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-medium border border-slate-700 flex items-center justify-center">上一步</button>
+                   <button onClick={handleBackClick} className="px-6 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-medium border border-slate-700 flex items-center justify-center active:scale-95">上一步</button>
                    <button 
                       onClick={handleNextClick} 
                       disabled={!isConfigConfirmed}
-                      className={`px-6 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all border ${isConfigConfirmed ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30 border-transparent' : 'bg-slate-800 text-slate-500 cursor-not-allowed border-slate-700'}`}
+                      className={`px-6 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 transition-all border active:scale-95 ${isConfigConfirmed ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-900/30 border-transparent' : 'bg-slate-800 text-slate-500 cursor-not-allowed border-slate-700'}`}
                    >
                       开始安装
                    </button>
@@ -510,7 +529,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
 
             {/* PAGE 4: INSTALLING */}
             {previewPage === 'installing' && (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col h-full justify-center relative z-10">
+              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out flex flex-col h-full justify-center relative z-10">
                 <div className="text-center mb-10">
                   <h2 className="text-2xl font-bold text-white mb-2">
                     {config.useOnlineInstaller ? "正在下载资源..." : "正在安装..."}
@@ -523,56 +542,63 @@ export const LivePreview: React.FC<LivePreviewProps> = ({ config }) => {
                 <div className="space-y-8 max-w-lg mx-auto w-full">
                   <div className="relative pt-1">
                     <div className="flex mb-2 items-center justify-between">
-                      <div className="text-right">
-                        <span className="text-xs font-semibold inline-block text-blue-400">
-                          {config.useOnlineInstaller ? "15%" : "45%"}
+                      <div className="text-right w-full">
+                        {/* INCREASED FONT SIZE HERE */}
+                        <span className="text-3xl font-black inline-block text-blue-500">
+                          {Math.floor(simulatedProgress)}%
                         </span>
                       </div>
                     </div>
-                    <div className="overflow-hidden h-3 mb-4 text-xs flex rounded bg-slate-800 border border-slate-700 shadow-inner">
-                      <div style={{ width: config.useOnlineInstaller ? "15%" : "45%" }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-gradient-to-r from-blue-600 to-indigo-500 relative overflow-hidden">
-                        <div className="absolute inset-0 w-full h-full bg-white/20 animate-[shimmer_1s_infinite] skew-x-12"></div>
+                    {/* UPDATED PROGRESS BAR: Removed Shimmer, Static Gradient */}
+                    <div className="w-full bg-slate-800 h-4 rounded-full overflow-hidden mt-4 border border-slate-700/50 shadow-inner">
+                      <div style={{ width: `${simulatedProgress}%` }} className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full transition-all duration-300 w-0 relative overflow-hidden shadow-[0_0_10px_rgba(59,130,246,0.5)]">
+                         {/* Removed inner shimmering div */}
                       </div>
                     </div>
                   </div>
                   
-                  <div className="p-5 rounded-lg bg-slate-950/50 border border-slate-800/50 font-mono text-[11px] space-y-2.5 text-slate-400 shadow-inner">
+                  {/* UPDATED LOG BOX: Taller, Larger Radius, Larger Font */}
+                  <div className="h-48 rounded-xl bg-slate-950/50 border border-slate-800/50 font-mono text-xs p-5 space-y-2.5 text-slate-400 shadow-inner overflow-y-auto custom-scrollbar">
                     {config.useOnlineInstaller ? (
                       <>
                          <div className="flex items-center gap-2">
                            <span className="text-indigo-500">>></span> 正在连接: archive.synology.cn...
                         </div>
-                         <div className="flex items-center gap-2 text-slate-500">
-                           <span className="text-slate-700">>></span> 目标文件: Setup.msi
-                        </div>
+                         {simulatedProgress > 20 && (
+                            <div className="flex items-center gap-2 text-slate-500">
+                                <span className="text-slate-700">>></span> 目标文件: Setup.msi
+                            </div>
+                         )}
                       </>
                     ) : (
                       <>
                         <div className="flex items-center gap-2">
                            <span className="text-blue-500">>></span> 解压中: app_core.dll
                         </div>
-                        <div className="flex items-center gap-2 text-slate-500">
-                           <span className="text-slate-700">>></span> 等待中: {config.msiFileName}
-                        </div>
+                        {simulatedProgress > 20 && (
+                             <div className="flex items-center gap-2 text-slate-500">
+                                <span className="text-slate-700">>></span> 等待中: {config.msiFileName}
+                            </div>
+                        )}
                       </>
                     )}
                     
-                    {config.forceCleanInstall && (
+                    {simulatedProgress > 40 && config.forceCleanInstall && (
                        <div className="flex items-center gap-2 text-red-400 animate-pulse">
                          <span className="text-red-500">>></span> 清理: 删除旧版本数据残留...
                        </div>
                     )}
-                    {config.synologyConfig.enabled && (
+                    {simulatedProgress > 60 && config.synologyConfig.enabled && (
                        <div className="flex items-center gap-2 text-slate-600 animate-pulse">
                          <span className="text-blue-500">>></span> 自动配置: config.json (注入服务器参数)
                        </div>
                     )}
-                    {config.useInfoForDeviceName && (
+                    {simulatedProgress > 80 && config.useInfoForDeviceName && (
                        <div className="flex items-center gap-2 text-emerald-500/70">
                          <span className="text-emerald-600">>></span> 重命名: [项目]-[部门]-DEVICE_ID
                        </div>
                     )}
-                    {config.automationScripts.slice(0,2).map((s, i) => (
+                    {simulatedProgress > 90 && config.automationScripts.slice(0,2).map((s, i) => (
                        <div key={i} className="flex items-center gap-2 text-slate-600">
                          <span className="text-slate-700">>></span> 队列中: {s.name}
                        </div>

@@ -1,5 +1,4 @@
 
-
 export interface ScriptFile {
   id: string;
   name: string;
@@ -12,6 +11,11 @@ export interface SynologyConfig {
   serverAddress: string;
   username: string; // Usually an admin account for deployment
   password: string;
+  // New fields for Mass Deployment based on PDF
+  asUser: string; // The "as_user" field (e.g., "$" or "DOMAIN\\$")
+  shareFolder: string; // e.g., "home" or "TeamFolder"
+  remotePath: string; // e.g., "/"
+  localPath: string; // e.g., "C:\\Users\\$\\SynologyDrive"
 }
 
 export interface InstallerConfig {
@@ -33,8 +37,8 @@ export interface InstallerConfig {
   departmentList: string;
   enableBackupSelection: boolean;
   enableSmartFilters: boolean;
-  backupMode: 'continuous' | 'scheduled'; // New
-  backupStartTime: string; // New
+  backupMode: 'continuous' | 'scheduled'; 
+  backupStartTime: string; 
   useOnlineInstaller: boolean;
   downloadUrl: string;
   synologyConfig: SynologyConfig;
@@ -49,8 +53,8 @@ export enum WizardStep {
 
 export const DEFAULT_CONFIG: InstallerConfig = {
   appName: "Synology Drive 助手",
-  appVersion: "3.5.1",
-  publisher: "制作人关新宇",
+  appVersion: "1.0.0", // Fixed version internally
+  publisher: "制作人 · 关新宇", 
   msiFileName: "SynologyDrive.msi",
   welcomeMessage: "本向导将自动下载并安装最新的 Synology Drive Client。",
   warningTitle: "安装前须知",
@@ -66,14 +70,19 @@ export const DEFAULT_CONFIG: InstallerConfig = {
   departmentList: "项目综合部,客户服务部,工程维护部,秩序维护部,环境维护部",
   enableBackupSelection: true,
   enableSmartFilters: true,
-  backupMode: 'continuous',
-  backupStartTime: '22:00',
+  backupMode: 'scheduled', 
+  backupStartTime: '12:00', 
   useOnlineInstaller: true,
-  downloadUrl: "https://archive.synology.cn/download/Utility/SynologyDriveClient/3.5.1-12888/Windows/Installer/Synology%20Drive%20Client-3.5.1-12888.msi",
+  // Reverted to global URL as requested
+  downloadUrl: "https://global.synologydownload.com/download/Utility/SynologyDriveClient/4.0.1-17885/Windows/Installer/x86_64/Synology%20Drive%20Client-4.0.1-17885-x64.msi",
   synologyConfig: {
     enabled: true,
-    serverAddress: "192.168.1.100", 
+    serverAddress: "101.205.19.235:6690", 
     username: "vansunadmin",
-    password: "vansun20130423"
+    password: "vansun20130423",
+    asUser: "$", // Default to local user variable per PDF
+    shareFolder: "home",
+    remotePath: "/",
+    localPath: "C:\\Users\\$\\SynologyDrive"
   }
 };
